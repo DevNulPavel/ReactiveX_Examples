@@ -72,12 +72,12 @@ void documentationExamplesTest() {
         // Создаем бесконечный поток int переменных до переполнения
         auto values = rxcpp::observable<>::range(1);
         
-        // Принимаем три значения из потока интов
+        // Принимаем три значения из потока интов, и преобразуем с помощью функции map в новый тип данных
         auto s1 = values.take(3).map([](int prime) {
             return std::make_tuple("1:", prime);
         });
         
-        // Принимаем три значения из потока интов
+        // Принимаем три значения из потока интов, и преобразуем с помощью функции map в новый тип данных
         auto s2 = values.take(3).map([](int prime) {
             return std::make_tuple("2:", prime);
         });
@@ -97,12 +97,12 @@ void documentationExamplesTest() {
         // Создаем бесконечный поток int переменных до переполнения
         auto values = rxcpp::observable<>::range(1);
         
-        // Принимаем значения из потока интов
+        // Принимаем значения из потока интов, и преобразуем с помощью функции map в новый тип данных
         auto s1 = values.map([](int prime) {
             return std::make_tuple("1:", prime);
         });
         
-        // Принимаем значения из потока интов
+        // Принимаем значения из потока интов, и преобразуем с помощью функции map в новый тип данных
         auto s2 = values.map([](int prime) {
             return std::make_tuple("2:", prime);
         });
@@ -125,11 +125,15 @@ void documentationExamplesTest() {
         // Создаем бесконечный поток int переменных до переполнения
         auto values = rxcpp::observable<>::range(1);
         
+        // Принимаем значения из потока интов, и преобразуем с помощью функции map в новый тип данных
+        // Все это происходит в пуле потоков
         auto s1 = values.subscribe_on(threads).map([](int prime) {
             std::this_thread::yield();
             return std::make_tuple("1:", prime);
         });
         
+        // Принимаем значения из потока интов, и преобразуем с помощью функции map в новый тип данных
+        // Все это происходит в пуле потоков
         auto s2 = values.subscribe_on(threads).map([](int prime) {
             std::this_thread::yield();
             return std::make_tuple("2:", prime);
@@ -139,6 +143,32 @@ void documentationExamplesTest() {
             printf("%s %d\n", s, p);
         };
         s1.merge(s2).take(6).observe_on(threads).as_blocking().subscribe(rxcpp::util::apply_to(outFunc));
+        
+        printf("Subscribe exit\n");
+    }
+    
+    {
+        printf("\n");
+        
+        // Возвращает список url'ов, основываясь на поиске по содержимому веб-страницы
+        auto queryFunc = [](){
+            auto urls = rxcpp::observable<>::from<std::string>("url1", "url2", "url3");
+            return urls;
+        };
+        
+        queryFunc().flat_map([](const std::string& url){
+            return rxcpp::observable<>::from(url, "suburl");
+        }).
+        filter([](const std::string& url){
+            if (url == "suburl") {
+                return false;
+            }
+            return true;
+        }).
+        take(4).
+        subscribe([](const std::string& url){
+            printf("Url: %s\n", url.c_str());
+        });
         
         printf("Subscribe exit\n");
     }
