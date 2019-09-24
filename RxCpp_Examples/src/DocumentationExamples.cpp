@@ -139,6 +139,7 @@ void documentationExamplesTest() {
             return std::make_tuple("2:", prime);
         });
         
+        // Будем сливать вывод приложения, принимать будем только 6 значений, получать будем тоже в потоке в блокирующем последовательном режиме
         auto outFunc = [](const char* s, int p) {
             printf("%s %d\n", s, p);
         };
@@ -152,20 +153,24 @@ void documentationExamplesTest() {
         
         // Возвращает список url'ов, основываясь на поиске по содержимому веб-страницы
         auto queryFunc = [](){
-            auto urls = rxcpp::observable<>::from<std::string>("url1", "url2", "url3");
+            auto urls = rxcpp::observable<>::from<std::string>("url1", "url2", "url3", "url4", "url5");
             return urls;
         };
         
+        // Создаем новый генератор (observable) из имеющихся данных
         queryFunc().flat_map([](const std::string& url){
             return rxcpp::observable<>::from(url, "suburl");
         }).
+        // Фильтруем только конкретные значения
         filter([](const std::string& url){
             if (url == "suburl") {
                 return false;
             }
             return true;
         }).
+        // Принимать будем только 4 значения
         take(4).
+        // Подписываемся на вывод
         subscribe([](const std::string& url){
             printf("Url: %s\n", url.c_str());
         });

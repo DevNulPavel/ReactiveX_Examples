@@ -2,5 +2,6 @@
 #include "DocumentationExamples.h"
 
 int main(int argc, char *argv[]) {
-    documentationExamplesTest();
+    basicExampleTest();
+    //documentationExamplesTest();
 }
