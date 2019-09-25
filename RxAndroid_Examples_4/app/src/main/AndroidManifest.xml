@@ -1,0 +1,86 @@
+<manifest
+    package="com.github.marwinxxii.rxsamples"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".MainActivity"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".EditTextSampleActivity"
+            android:label="@string/sample_edittext">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="${applicationId}"
+                    android:path="/edittexts"
+                    android:scheme="@string/deep_link_scheme" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".EmailSampleActivity"
+            android:label="@string/sample_email">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="${applicationId}"
+                    android:path="/email"
+                    android:scheme="@string/deep_link_scheme" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".CombineIOSampleActivity"
+            android:label="@string/sample_io_combine"
+            android:screenOrientation="sensorPortrait">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="${applicationId}"
+                    android:path="/combineio"
+                    android:scheme="@string/deep_link_scheme" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".EventBusSampleActivity"
+            android:label="@string/sample_event_bus">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="${applicationId}"
+                    android:path="/eventbus"
+                    android:scheme="@string/deep_link_scheme" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

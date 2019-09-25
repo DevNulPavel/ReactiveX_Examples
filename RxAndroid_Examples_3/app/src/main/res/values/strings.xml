@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name" translatable="false">Reactive UI</string>
+
+    <string name="activity_main_title">Choose sample to run:</string>
+
+    <string name="activity_filters_class" translatable="false">com.marwinxxii.reactiveui.activity.FiltersActivity</string>
+    <string name="activity_filters_action_rx" translatable="false">com.marwinxxii.reactiveui.filters.ACTION_RX</string>
+    <string name="activity_filters_action_classic" translatable="false">com.marwinxxii.reactiveui.filters.ACTION_CLASSIC</string>
+    <string name="activity_filters_label">Realty search</string>
+    <string name="activity_filters_label_rx">Realty search - Rx</string>
+    <string name="activity_filters_rx">Rx way</string>
+    <string name="activity_filters_classic">Classic way</string>
+
+    <string name="buy">Buy</string>
+    <string name="rent">Rent</string>
+
+    <string name="property_apartment">Apartment</string>
+    <string name="property_room">Room</string>
+    <string name="property_house">House</string>
+    <string name="property_type_label">What:</string>
+
+    <string-array name="property_types">
+        <item>@string/property_apartment</item>
+        <item>@string/property_room</item>
+        <item>@string/property_house</item>
+    </string-array>
+
+    <string name="price">Price:</string>
+    <string name="price_from_hint">From</string>
+    <string name="price_to_hint">To</string>
+    <string name="currency_rur_label">roubles</string>
+    <string name="price_error">Incorrect price</string>
+    <string name="apply_filters">Apply</string>
+    <string name="filters_applied">Filters applied</string>
+    <string name="offers_found">%d offers found</string>
+</resources>

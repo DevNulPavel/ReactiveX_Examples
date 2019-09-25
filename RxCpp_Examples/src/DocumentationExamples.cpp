@@ -3,7 +3,7 @@
 
 
 void documentationExamplesTest() {
-    {
+    /*{
         printf("\n");
         
         // Функция, которая будет выдывать данные в поток
@@ -173,6 +173,98 @@ void documentationExamplesTest() {
         // Подписываемся на вывод
         subscribe([](const std::string& url){
             printf("Url: %s\n", url.c_str());
+        });
+        
+        printf("Subscribe exit\n");
+    }*/
+    
+    {
+        printf("\n");
+        
+        // Создаем новый генератор (observable) из имеющихся данных
+        rxcpp::observable<>::from<int32_t>(1, 2, 2, 6, 3, 4, 4, 5).
+        // Конвертируем данные в тип string
+        map([](int32_t number){
+            std::string numberStr = std::string("Number: ") + std::to_string(number);
+            return numberStr;
+        }).
+        // Убирает дублирующиеся последовательные значения
+        distinct().
+        // TODO: ??? Убирает дублирующиеся последовательные значения
+        distinct_until_changed().
+        // Специальный экшен, который вызывается на окончание передачи из цепочки выше, некий барьер выполнения?
+        // TODO: ???
+        finally([](){
+            printf("The final action for numbers\n");
+        }).
+        // Выдавать будем накопленные за заданное время или количество значения
+        //buffer_with_time_or_count(std::chrono::milliseconds(10), 2, rxcpp::observe_on_event_loop()). // TODO: Не работает вывод значений ниже
+        // Выдавать будем накопленные за заданное время значения
+        // buffer_with_time(std::chrono::milliseconds(10), rxcpp::identity_current_thread()). // TODO: Не работает вывод значений ниже
+        // Накапливаем значения по 2 штуки, передавать будем вектор из 2х элементов
+        buffer(2).
+        // Из вектора с 2мя значениями создаем новый источник данных, который разворачивает значения снова в последовательные
+        flat_map([](const std::vector<std::string>& bufferedItems){
+            printf("Total buffered items count for 10 mSec is: %lld\n", static_cast<int64_t>(bufferedItems.size()));
+            
+            // Итерируемся по элементам коллекции
+            return rxcpp::observable<>::iterate(bufferedItems);
+            
+            // Создаем 2 новых потока из значений и объединяем их
+            /*auto iterate1 = rxcpp::observable<>::iterate(bufferedItems);
+            auto iterate2 = rxcpp::observable<>::iterate(bufferedItems);
+            return iterate1.concat(iterate2);*/
+            
+            // Скукоживаем по 2 значения, следующий будет принимать std::tuple<std::string, std::string> v
+            /*auto iterate1 = rxcpp::observable<>::iterate(bufferedItems);
+            auto iterate2 = rxcpp::observable<>::iterate(bufferedItems);
+            return iterate1.combine_latest(iterate2);*/
+        }).
+        // Специальный экшен, который вызывается на окончание передачи из цепочки выше, некий барьер выполнения?
+        // TODO: ???
+        finally([](){
+            printf("The final action for flat_map handler\n");
+        }).
+        // Выдает элементы с определенной периодичностью
+        // TODO: ???
+        //delay(std::chrono::milliseconds(1000), rxcpp::observe_on_new_thread()).
+        // Выдает новый элемент, с определенной периодичностью, отбрасывая слишком частые
+        // TODO: ???
+        //debounce(std::chrono::milliseconds(1)).
+        tap([](const std::string& text){
+            printf("%s\n", text.c_str());
+        }).
+        // Проверяем, что все принятые строки не являются пустыми, возвращает true / false
+        all([](const std::string& str){
+            if (str.empty() == false) {
+                return true;
+            }
+            return false;
+        }).
+        // Конвертируем в строку
+        map([](bool allIsNotEmpty){
+            if (allIsNotEmpty) {
+                return "All is not empty";
+            }
+            return "Someone is empty";
+        }).
+        tap([](const std::string& text){
+            printf("%s\n", text.c_str());
+        }).
+        // Возвращает true если исходный источник данных пустой
+        is_empty().
+        // Конвертируем в строку
+        map([](bool allIsEmpty){
+            if (allIsEmpty) {
+                return "All is empty";
+            }
+            return "Someone is not empty";
+        }).
+        // TODO: ???
+        as_blocking().
+        // Подписываемся на вывод
+        subscribe([](const std::string& text){
+            printf("%s\n", text.c_str());
         });
         
         printf("Subscribe exit\n");
