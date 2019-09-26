@@ -189,13 +189,11 @@ void documentationExamplesTest() {
             std::string numberStr = std::string("Number: ") + std::to_string(number);
             return numberStr;
         }).
-        // Убирает дублирующиеся последовательные значения
+        // Убирает дублирующиеся значения
         distinct().
-        // Весь код ниже будет выполняться на новом потоке
-        // TODO: ??? Убирает дублирующиеся последовательные значения
+        // Убирает дублирующиеся именно последовательные значения
         distinct_until_changed().
         // Специальный экшен, который вызывается на окончание передачи из цепочки выше, некий барьер выполнения?
-        // TODO: ???
         finally([](){
             //std::cout << "Thread " << std::this_thread::get_id() << ": " << "The final action for numbers" << std::endl;
         }).
@@ -223,15 +221,12 @@ void documentationExamplesTest() {
             return iterate1.combine_latest(iterate2);*/
         }).
         // Специальный экшен, который вызывается на окончание передачи из цепочки выше, некий барьер выполнения?
-        // TODO: ???
         finally([](){
             //std::cout << "Thread " << std::this_thread::get_id() << ": " << "The final action for flat_map handler" << std::endl;
         }).
         // Выдает элементы с определенной периодичностью
-        // TODO: ???
-        //delay(std::chrono::milliseconds(1000), rxcpp::observe_on_new_thread()).
+        delay(std::chrono::milliseconds(1000), rxcpp::observe_on_new_thread()).
         // Выдает новый элемент, с определенной периодичностью, отбрасывая слишком частые
-        // TODO: ???
         //debounce(std::chrono::milliseconds(1)).
         tap([](const std::string& text){
             std::cout << "Thread " << std::this_thread::get_id() << ": " << text << std::endl;
@@ -268,7 +263,9 @@ void documentationExamplesTest() {
         subscribe_on(rxcpp::synchronize_new_thread()).
         // Весь код ниже будет выполняться на новом потоке
         observe_on(rxcpp::synchronize_new_thread()).
-        // Возвращает новый источник, который содержит блокирующие методы для этого источника
+        // TODO: ???
+        //as_dynamic().
+        // Блокируемся на данном поток с ожиданием результата в subscribe ниже, иначе у нас все упадет так как объекты просто уничтожаются
         as_blocking().
         // Подписываемся на вывод
         subscribe([](const std::string& text){

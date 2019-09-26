@@ -6,8 +6,12 @@ import java.io.StringWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Scanner;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -353,12 +357,47 @@ public class MainActivity extends Activity {
         obs2 = obs2.observeOn(AndroidSchedulers.mainThread());
         obs2 = obs2.doOnNext(integer -> Log.d(TAG, "obs2, thread: " + Thread.currentThread().getName()) );
 
-
         Observable<Integer> finalObs = obs1.concatWith(obs2);
         Single<Long> completeObs = finalObs.count();
         //Boolean completed = completeObs.blockingGet();
         completeObs = completeObs.observeOn(AndroidSchedulers.mainThread());
-        Disposable disp = completeObs.subscribe(complete -> Log.d(TAG, "Thread: " + Thread.currentThread().getName() + " -> All work complete") );
+        Disposable disp1 = completeObs.subscribe(complete -> Log.d(TAG, "Thread: " + Thread.currentThread().getName() + " -> All work complete") );
 
+
+        // Возможен вариант, когда мы запускаем задачу, которая выдает в фоне данные, а ждем мы их в текущем вызванном потоке
+        // все подобные методы начинаются с blocking*
+        Observable<Integer> obs3 = Observable.create((ObservableEmitter<Integer> emitter)->{
+            emitter.onNext(1);
+            emitter.onNext(2);
+            emitter.onNext(3);
+            emitter.onComplete();
+        });
+        obs3 = obs3.subscribeOn(Schedulers.computation()); // Данные будут выдываться в потоке вычисления
+        obs3 = obs3.doOnNext(integer -> Log.d(TAG, "obs1, thread: " + Thread.currentThread().getName()) );
+        obs3.blockingForEach(val ->{
+            Log.d(TAG, "obs3, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
+
+
+        // Возможен вариант flatMap, который с помощью первой функции получает дополнительную инфу о нем,
+        // затем вторым параметром эту инфу использует в своих целях и выдает совокупный результат
+        List<Integer> sourcesList = Arrays.asList(1, 2, 3, 4);
+        Observable<List<Integer>> obs4 = Observable.just(sourcesList);
+        Observable<Integer> obs5 = obs4.flatMap(list -> Observable.fromIterable(list) );
+        obs5 = obs5.flatMap(val -> Observable.just(val+10), (val, newInfo) -> {
+            val += 100;
+            return val + newInfo;
+        });
+        obs5.blockingForEach(val ->{
+            Log.d(TAG, "obs5, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
+
+        // Так же мы можем выполнять конкатенацию элементов друг с другом
+        Observable<Integer> obs6_1 = Observable.just(1, 2, 3, 4);
+        Observable<Integer> obs6_2 = Observable.just(1, 2, 3, 4);
+        Observable<Integer> obs7 = obs6_1.zipWith(obs6_2, (val1, val2)-> val1 + val2);
+        obs7.blockingForEach(val ->{
+            Log.d(TAG, "obs8, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
     }
 }
