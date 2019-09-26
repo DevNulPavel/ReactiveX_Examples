@@ -180,6 +180,7 @@ void documentationExamplesTest() {
     
     {
         printf("\n");
+        std::cout << "Thread " << std::this_thread::get_id() << ": this is main thread" << std::endl;
         
         // Создаем новый генератор (observable) из имеющихся данных
         rxcpp::observable<>::from<int32_t>(1, 2, 2, 6, 3, 4, 4, 5).
@@ -190,12 +191,13 @@ void documentationExamplesTest() {
         }).
         // Убирает дублирующиеся последовательные значения
         distinct().
+        // Весь код ниже будет выполняться на новом потоке
         // TODO: ??? Убирает дублирующиеся последовательные значения
         distinct_until_changed().
         // Специальный экшен, который вызывается на окончание передачи из цепочки выше, некий барьер выполнения?
         // TODO: ???
         finally([](){
-            printf("The final action for numbers\n");
+            //std::cout << "Thread " << std::this_thread::get_id() << ": " << "The final action for numbers" << std::endl;
         }).
         // Выдавать будем накопленные за заданное время или количество значения
         //buffer_with_time_or_count(std::chrono::milliseconds(10), 2, rxcpp::observe_on_event_loop()). // TODO: Не работает вывод значений ниже
@@ -205,7 +207,7 @@ void documentationExamplesTest() {
         buffer(2).
         // Из вектора с 2мя значениями создаем новый источник данных, который разворачивает значения снова в последовательные
         flat_map([](const std::vector<std::string>& bufferedItems){
-            printf("Total buffered items count for 10 mSec is: %lld\n", static_cast<int64_t>(bufferedItems.size()));
+            std::cout << "Thread " << std::this_thread::get_id() << ": " << "Total buffered items count for 10 mSec is " << static_cast<int64_t>(bufferedItems.size()) << std::endl;
             
             // Итерируемся по элементам коллекции
             return rxcpp::observable<>::iterate(bufferedItems);
@@ -223,7 +225,7 @@ void documentationExamplesTest() {
         // Специальный экшен, который вызывается на окончание передачи из цепочки выше, некий барьер выполнения?
         // TODO: ???
         finally([](){
-            printf("The final action for flat_map handler\n");
+            //std::cout << "Thread " << std::this_thread::get_id() << ": " << "The final action for flat_map handler" << std::endl;
         }).
         // Выдает элементы с определенной периодичностью
         // TODO: ???
@@ -232,7 +234,7 @@ void documentationExamplesTest() {
         // TODO: ???
         //debounce(std::chrono::milliseconds(1)).
         tap([](const std::string& text){
-            printf("%s\n", text.c_str());
+            std::cout << "Thread " << std::this_thread::get_id() << ": " << text << std::endl;
         }).
         // Проверяем, что все принятые строки не являются пустыми, возвращает true / false
         all([](const std::string& str){
@@ -249,7 +251,7 @@ void documentationExamplesTest() {
             return "Someone is empty";
         }).
         tap([](const std::string& text){
-            printf("%s\n", text.c_str());
+            std::cout << "Thread " << std::this_thread::get_id() << ": " << text << std::endl;
         }).
         // Возвращает true если исходный источник данных пустой
         is_empty().
@@ -260,11 +262,17 @@ void documentationExamplesTest() {
             }
             return "Someone is not empty";
         }).
-        // TODO: ???
+        // 4 раза повторяет вывод из предыдущего источника (Исходного источника?)
+        //repeat(4).
+        // Весь код выше будет выполняться на новом потоке для исходного источника
+        subscribe_on(rxcpp::synchronize_new_thread()).
+        // Весь код ниже будет выполняться на новом потоке
+        observe_on(rxcpp::synchronize_new_thread()).
+        // Возвращает новый источник, который содержит блокирующие методы для этого источника
         as_blocking().
         // Подписываемся на вывод
         subscribe([](const std::string& text){
-            printf("%s\n", text.c_str());
+            std::cout << "Thread " << std::this_thread::get_id() << ": " << text << std::endl;
         });
         
         printf("Subscribe exit\n");

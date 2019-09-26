@@ -1,8 +1,16 @@
 package io.reactivex.android.samples;
 
+import java.io.BufferedInputStream;
+import java.io.InputStream;
+import java.io.StringWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -10,6 +18,8 @@ import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+
+import javax.net.ssl.HttpsURLConnection;
 
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
@@ -51,6 +61,9 @@ public class MainActivity extends Activity {
                 onRunSchedulerExampleButtonClicked();
             }
         });
+
+        //onRunSchedulerExampleButtonClicked();
+        testOperatorsMethod2();
     }
 
     @Override protected void onDestroy() {
@@ -61,11 +74,55 @@ public class MainActivity extends Activity {
     }
 
     void onRunSchedulerExampleButtonClicked() {
-        Observable<String> observable = sampleObservable();
+        // Создаем непосредственно задачу, которая будет выполняться
+        ObservableOnSubscribe<String> urlSource = new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(ObservableEmitter<String> emitter) throws Exception {
+                int delay = 10;
+                SystemClock.sleep(delay);
+                emitter.onNext("http://devnulpavel.ddns.net:8080/");
+                SystemClock.sleep(delay);
+                emitter.onNext("http://devnulpavel.ddns.net:8080/");
+                emitter.onComplete();
+            }
+        };
+
+        Observable<String> observable = Observable.create(urlSource);
+        // По передаваемым URL будем делать новый запрос на сервер
+        observable = observable.flatMap(urlString ->{
+            // Инициируем запрос на полученный URL, дальше результат как-то будем обрабатывать
+            Observable<String> urlReceiver = Observable.fromCallable(()->{
+                URL url = new URL(urlString);
+                HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+                try {
+                    InputStream inputStream = new BufferedInputStream(conn.getInputStream());
+
+                    Scanner s = new Scanner(inputStream).useDelimiter("<body>");
+                    return s.hasNext() ? s.next() : "";
+                } finally {
+                    conn.disconnect();
+                }
+            });
+            // Запросы будем исполнять на io потоке
+            urlReceiver = urlReceiver.subscribeOn(Schedulers.io());
+            // Для отладки будем выводить текущий поток
+            urlReceiver = urlReceiver.doOnNext(text ->{
+                Log.d(TAG, "Text request thread: " + Thread.currentThread().getName());
+            });
+            return urlReceiver;
+        });
+        // Фильтруем пустые строки
+        observable = observable.filter(text -> !text.isEmpty());
+        // Выдавать будем с определенной задержкой результаты
+        observable = observable.delay(100, TimeUnit.MILLISECONDS);
         // Запускать будем в IO треде
         observable = observable.subscribeOn(Schedulers.io());
         // Коллбеки будут вызываться уже в главном потоке
         observable = observable.observeOn(AndroidSchedulers.mainThread());
+        // Для отладки будем выводить текущий поток
+        observable = observable.doOnNext(text ->{
+            Log.d(TAG, "Receive thread: " + Thread.currentThread().getName());
+        });
         // Назначаем обработчик
         DisposableObserver<String> observer = new DisposableObserver<String>() {
             // Вызывается при завершении задачи
@@ -244,7 +301,7 @@ public class MainActivity extends Activity {
         disposables.dispose();
     }
 
-    void testOperatorsMethod(){
+    void testOperatorsMethod1(){
         Observable<String> greeting = Observable.just("Hello");
         Observable<String> yelling = greeting.map((String s) -> {
             return s.toUpperCase();
@@ -271,5 +328,37 @@ public class MainActivity extends Activity {
         // Получать на конкретном потоке
         response1 = response1.observeOn(AndroidSchedulers.mainThread());
         Disposable disp = response1.subscribe();
+    }
+
+    void testOperatorsMethod2(){
+
+        // Метод subscribeOn, говорит в какой поток наблюдаемый источник будет кидать свои значения
+        // в данном случае - значения будут и после приходить том же потоке, так как поток не меняется
+        // интересным, является то, что влияние оказывает только первая строчка
+        Observable<Integer> obs1 = Observable.just(1, 2, 3, 4, 5, 6);
+        obs1 = obs1.subscribeOn(Schedulers.computation());
+        obs1 = obs1.subscribeOn(Schedulers.io());
+        obs1 = obs1.subscribeOn(AndroidSchedulers.mainThread());
+        obs1 = obs1.doOnNext(integer -> Log.d(TAG, "obs1, thread: " + Thread.currentThread().getName()) );
+
+        // Метод observeOn, говорит на каком потоке мы должны ожидать сообщения
+        // данный метод можно без проблем вызывать множество раз для переключения потоков
+        Observable<Integer> obs2 = Observable.just(1, 2, 3, 4, 5, 6);
+        obs2 = obs2.subscribeOn(Schedulers.newThread());
+        obs2 = obs2.doOnNext(integer -> Log.d(TAG, "obs2, thread: " + Thread.currentThread().getName()));
+        obs2 = obs2.observeOn(Schedulers.io());
+        obs2 = obs2.doOnNext(integer -> Log.d(TAG, "obs2, thread: " + Thread.currentThread().getName()) );
+        obs2 = obs2.observeOn(Schedulers.single()); // Специальный шедулер, который основывается на единственном потоке для выполнения последовательной работы
+        obs2 = obs2.doOnNext(integer -> Log.d(TAG, "obs2, thread: " + Thread.currentThread().getName()) );
+        obs2 = obs2.observeOn(AndroidSchedulers.mainThread());
+        obs2 = obs2.doOnNext(integer -> Log.d(TAG, "obs2, thread: " + Thread.currentThread().getName()) );
+
+
+        Observable<Integer> finalObs = obs1.concatWith(obs2);
+        Single<Long> completeObs = finalObs.count();
+        //Boolean completed = completeObs.blockingGet();
+        completeObs = completeObs.observeOn(AndroidSchedulers.mainThread());
+        Disposable disp = completeObs.subscribe(complete -> Log.d(TAG, "Thread: " + Thread.currentThread().getName() + " -> All work complete") );
+
     }
 }
