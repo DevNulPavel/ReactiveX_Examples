@@ -25,6 +25,7 @@ import android.widget.TextView;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import io.reactivex.BackpressureStrategy;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;
 import io.reactivex.Maybe;
@@ -38,6 +39,8 @@ import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.disposables.Disposable;
 import io.reactivex.observers.DisposableObserver;
+import io.reactivex.parallel.ParallelFlowable;
+import io.reactivex.processors.PublishProcessor;
 import io.reactivex.schedulers.Schedulers;
 
 
@@ -67,7 +70,8 @@ public class MainActivity extends Activity {
         });
 
         //onRunSchedulerExampleButtonClicked();
-        testOperatorsMethod2();
+        //testOperatorsMethod2();
+        backpressureTest();
     }
 
     @Override protected void onDestroy() {
@@ -399,5 +403,72 @@ public class MainActivity extends Activity {
         obs7.blockingForEach(val ->{
             Log.d(TAG, "obs8, thread: " + Thread.currentThread().getName() + " received val->" + val);
         });
+    }
+
+    void backpressureTest(){
+        // В тех кейсах, когда у вас в итерации, условно говоря, не более 1000 элементов,
+        // при этом это самый худший случай и не предполагается масштабирования, вам не требуется backpressure.
+        // В целом, можно сказать, что, если вы чувствуете, что в каком-то определенном кейсе нет шансов на OutOfMemoryException,
+        // то это ровно тот случай, когда можно и нужно использовать Observable.
+        // В основном, это случаи использования UI, самые разнообразные события onClick, Touch, Pointer-movement, и.т.п.
+        // По сути, это любые события, частота которых не превышает 1000 Hz.
+
+        // Когда вы имеете дело уже с большими или непредсказуемыми объемами данных, скажем свыше 10000 элементов, или в ситуациях с непрерывной генерацией данных.
+        // Также поводом для использования Flowable является парсинг, чтение данных с разнообразных носителей информации(Internal/External storage).
+
+        // Backpressure(Обратное давление) — явление, которое можно встретить в порождающем потоке,
+        // где некоторые асинхронные операции не могут обрабатывать значения достаточно быстро и нуждаются в замедлении работы производителя.
+
+        // В RxJava 2.x большинство асинхронных операторов теперь имеют ограниченный внутренний буфер,
+        // и любая попытка переполнения этого буфера завершает всю последовательность с помощью MissingBackpressureException.
+        // В документации есть раздел по Backpressure и операторам, которые его поддеживают http://reactivex.io/documentation/operators/backpressure.html
+
+        Flowable<Integer> flow1 = Flowable.range(1, 5);
+        flow1 = flow1.map(v -> v * v);
+        flow1 = flow1.filter(v -> v % 3 == 0);
+        flow1.blockingSubscribe(val -> {
+            Log.d(TAG, "flow1, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
+
+        Log.d(TAG, "\n\n");
+
+        Flowable<Integer> flow2 = Flowable.fromCallable(() -> {
+            Log.d(TAG, "flow2, thread: " + Thread.currentThread().getName() + " before sleep");
+            Thread.sleep(1000); //  imitate expensive computation
+            Log.d(TAG, "flow2, thread: " + Thread.currentThread().getName() + " after sleep");
+            return 1;
+        });
+        flow2 = flow2.subscribeOn(Schedulers.io());
+        flow2.blockingSubscribe(val -> {
+            Log.d(TAG, "flow2, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
+
+        Log.d(TAG, "\n\n");
+
+        Flowable<Integer> flow3 = Flowable.range(1, 10);
+        flow3 = flow3.delay(1000, TimeUnit.MILLISECONDS);
+        ParallelFlowable<Integer> flow3_par = flow3.parallel();
+        flow3_par = flow3_par.runOn(Schedulers.computation());
+        flow3_par = flow3_par.map(v -> v * v);
+        flow3 = flow3_par.sequential();
+        flow3.blockingSubscribe(val -> {
+            Log.d(TAG, "flow3, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
+
+        // onBackpressureBuffer
+        // Этот оператор в своей базовой форме повторно вводит неограниченный буфер между исходным источником и оператором нисходящего потока.
+        // Это означает, что пока не исчерпается память, он может обрабатывать почти любую сумму, поступающую из непрерывно порождающего источника.
+        PublishProcessor<Integer> source = PublishProcessor.create();
+        Flowable<Integer> flow4 = source.onBackpressureBuffer();
+        flow4 = flow4.subscribeOn(Schedulers.computation());
+        flow4 = flow4.observeOn(AndroidSchedulers.mainThread(), false, 10);
+        Disposable disp4 = flow4.subscribe(val -> {
+            Log.d(TAG, "flow4, thread: " + Thread.currentThread().getName() + " received val->" + val);
+        });
+
+        for(Integer i = 0; i < 1000; i++) {
+            source.onNext(i);
+        }
+        source.onComplete();
     }
 }

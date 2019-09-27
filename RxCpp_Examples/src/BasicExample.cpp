@@ -23,17 +23,12 @@ void basicExampleTest() {
     std::uniform_int_distribution<> dist(4, 18);
     
     // Для тестовых целей будем создавать поток байтов
-    auto bytes =
-    
     // Начинаем поток данных с диапазона значений от 0 до 10
-    rxcpp::sources::range(0, 10) |
-    
+    auto bytes = rxcpp::sources::range(0, 10) |
     // Затем принимаем эти значения и создаем новый subscriber из значений
     rxcpp::operators::flat_map([&](int i){
-        // Создаем новые данные
-        auto body =
         // Создаем поток значений от А до А+10
-        rxcpp::sources::from((uint8_t)('A' + i)) |
+        auto body = rxcpp::sources::from((uint8_t)('A' + i)) |
         // Повторяем от 4х до 18ти раз
         rxcpp::operators::repeat(dist(gen)) |
         // Возвращаем новый observable который выполняет "забывание типа" данного observable
@@ -42,21 +37,17 @@ void basicExampleTest() {
         // Создаем новый поток-разделитель
         auto delim = rxcpp::sources::from((uint8_t)'\r');
         
-        // Создаем поток данных с результатом
-        auto resultStream =
         // Объединяем поток символов и поток разделителей
-        rxcpp::sources::from(body, delim) |
+        auto resultStream = rxcpp::sources::from(body, delim) |
         // Соединяем эти значения
         rxcpp::operators::concat();
         
         return resultStream;
     }) |
-    
     // Return an observable that emits connected, non-overlapping windows, each containing at most count items from the source observable. If the skip parameter is set, return an observable that emits windows every skip items containing at most count items from the source observable.
     // Возвращает observable который выбрасывает соединенные, не перекрывающиеся окна. Каждый содержащий наибольшее количество итемов из исходного observable.
     // Если параметр skip установлен, возвращается observable, который выбрасывает окна, каждый раз пропуская итемы, содержащие наиболее количество итемов из исходного observable
     rxcpp::operators::window(17) |
-    
     // Создаем новый observable на основании входных данных
     rxcpp::operators::flat_map([](rxcpp::observable<uint8_t> w){
         // Скукоживаем входящий поток байтов в вектор с этими байтами
@@ -72,8 +63,8 @@ void basicExampleTest() {
     // Промежуточный обработчик значений с методами onNext, onCompleted
     rxcpp::operators::tap([](const std::vector<uint8_t>& v){
         // Для отладки выводим значения
-        std::copy(v.begin(), v.end(), std::ostream_iterator<long>(std::cout, " "));
-        std::cout << std::endl;
+        //std::copy(v.begin(), v.end(), std::ostream_iterator<long>(std::cout, " "));
+        //std::cout << std::endl;
     });
     
     // Функция удаления пробелов из строки и возвращения новой
@@ -84,29 +75,32 @@ void basicExampleTest() {
     
     // Новый поток создания строк из байтов
     auto strings = bytes |
-    
     // For each item from this observable use the CollectionSelector to produce an observable and subscribe to that observable. For each item from all of the produced observables use the ResultSelector to produce a value to emit from the new observable that is returned.
     // Для каждого итема из этого observable используя CollectionSelector, чтобы создавать новый observable и подписаться на этот observable.
     // Для каждого итема из
     // TODO: ???
     rxcpp::operators::concat_map([](std::vector<uint8_t> v){
-        // Создаем строку из набора байт
+        // Создаем большую строку из набора байт
         std::string s(v.begin(), v.end());
-        // Создаем регулярку для разделения
+        // Создаем регулярку для разделения по символу переноса строки
         std::regex delim(R"/(\r)/");
         // Выполняем разделение строки для получения вектора строк
         std::cregex_token_iterator cursor(&s[0], &s[0] + s.size(), delim, {-1, 0});
         std::cregex_token_iterator end;
         std::vector<std::string> splits(cursor, end);
-        // Создаем новый Observable для итерирования
+        // Создаем новый Observable для итерирования по получившимся строкам
         return rxcpp::sources::iterate(move(splits));
     }) |
     // Фильтруем пустые строки
     rxcpp::operators::filter([](const std::string& s){
         return !s.empty();
     }) |
-    // TODO: ???
+    // Turn a cold observable hot and allow connections to the source to be independent of subscriptions.
+    // Turn a cold observable hot, send the most recent value to any new subscriber, and allow connections to the source to be independent of subscriptions.
+    // Включает холодную подписку вместо горячей, позволяя соединениям быть независимыми от подписчиков
+    // Запуск передачи может быть осуществлен с помощью вызова connect у общего observable ".connect()"
     rxcpp::operators::publish() |
+    // takes a connectable_observable source and uses a ref_count of the subscribers to control the connection to the published source. The first subscription will cause a call to connect() and the last unsubscribe will unsubscribe the connection.
     // TODO: ???
     rxcpp::operators::ref_count();
     
